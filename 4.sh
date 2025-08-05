@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/ddns-go/ddns-go -c /usr/local/ddns-go/ddns_go_config.yaml
+ExecStart=/usr/local/ddns-go/ddns-go -l 0.0.0.0:9876 -c /usr/local/ddns-go/ddns_go_config.yaml
 Restart=on-failure
 
 [Install]
