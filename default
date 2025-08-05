@@ -1,0 +1,87 @@
+# HTTP 81端口重定向到HTTPS 444端口
+# 同时监听IPv4和IPv6
+server {
+    listen 81;
+    listen [::]:81;
+    server_name zyz0922.cn;
+    
+    # 永久重定向到HTTPS（带端口444）
+    return 301 https://$host:444$request_uri;
+    
+    # IPv6专用访问日志（可选）
+    access_log /var/log/nginx/access_ipv6.log;
+}
+
+# HTTPS 444端口核心服务配置
+# 同时监听IPv4和IPv6
+server {
+    listen 444 ssl http2;
+    listen [::]:444 ssl http2;
+    server_name zyz0922.cn;
+    
+    # SSL证书配置
+    ssl_certificate /ssl/zyz0922.cn.pem;         # 证书文件（公钥）
+    ssl_certificate_key /ssl/zyz0922.cn.key;     # 私钥文件
+    
+    # SSL安全优化配置
+    ssl_protocols TLSv1.2 TLSv1.3;                           # 支持的TLS版本
+    ssl_prefer_server_ciphers on;                             # 优先使用服务器加密套件
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+    ssl_session_cache shared:SSL:10m;                         # 共享SSL会话缓存
+    ssl_session_timeout 1d;                                   # 会话超时时间
+    ssl_session_tickets off;                                  # 禁用会话票据
+    
+    # HSTS配置（增强安全性，可选）
+    # 注意：启用后浏览器将强制使用HTTPS，需确保HTTPS服务正常
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # 网站根目录与默认首页
+    root /var/www/html;
+    index index.html;
+    
+    # 静态文件缓存配置
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|html)$ {
+        expires max;           # 缓存有效期最大化
+        access_log off;        # 关闭静态文件访问日志
+    }
+    
+    # 前端路由支持（单页应用刷新无404）
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # 后端API代理配置
+    location /api/ {
+        proxy_pass http://localhost:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # IPv6地址转发支持
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+    }
+    
+    # WebSocket协议支持
+    location /ws/ {
+        proxy_pass http://localhost:8081;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;  # 延长超时时间（24小时）
+    }
+    
+    # ISO文件下载配置
+    location /usb/ {
+        autoindex on;  # 允许显示目录列表
+    }
+    
+    # IPv6专用错误页面（可选）
+        error_page 404 /404_ipv6.html;
+        location = /404_ipv6.html {
+        root /var/www/html/errors;
+        internal;
+    }
+}
