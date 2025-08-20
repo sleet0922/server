@@ -32,7 +32,7 @@ write raw = yes
 getwd cache = yes
 
 
-[MyWebFiles]
+[share]
 path = /
 browseable = yes
 writable = yes
@@ -40,8 +40,10 @@ guest ok = yes
 guest only = yes
 create mask = 0777
 directory mask = 0777
-force user = root  # 强制使用root用户（原配置为www-data，已修改）
-force group = root  # 强制使用root组（原配置为www-data，已修改）
+force user = root 
+# 强制使用root用户（原配置为www-data，已修改）
+force group = root  
+# 强制使用root组（原配置为www-data，已修改）
 EOF
 
 # 重启SMB服务
