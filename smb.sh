@@ -2,23 +2,23 @@
 
 # 警告：此配置允许通过SMB以root权限修改系统所有文件，存在严重安全风险！
 echo "=============================================="
-echo "警告：此操作极度危险，仅用于测试，测试后请立即清理！"
+echo "it is dangerous"
 echo "=============================================="
-read -p "确认继续？(输入yes继续，其他键退出)：" confirm
+read -p "Are you sure？(press yes)：" confirm
 if [ "$confirm" != "yes" ]; then
-    echo "已取消操作"
+    echo "exit"
     exit 1
 fi
 
 # 安装SMB服务
-echo "开始安装SMB服务..."
+echo "start installing SMB..."
 sudo apt update && sudo apt install -y samba samba-common-bin
 
 # 备份原有SMB配置（如果存在）
 sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.bak$(date +%Y%m%d%H%M%S)
 
 # 创建自定义配置文件（按要求修改为root权限）
-echo "配置SMB文件..."
+echo "config SMB..."
 sudo tee /etc/samba/smb.conf > /dev/null << 'EOF'
 [global]
 workgroup = WORKGROUP
@@ -47,16 +47,13 @@ force group = root
 EOF
 
 # 重启SMB服务
-echo "重启SMB服务..."
+echo "restart SMB..."
 sudo systemctl restart smbd nmbd
 
 # 显示服务状态
-echo "SMB服务状态："
+echo "SMB status："
 sudo systemctl status smbd --no-pager
 
 echo "=============================================="
-echo "配置完成！风险提示："
-echo "1. 此时通过网络可以root权限修改系统所有文件"
-echo "2. 测试完成后请执行：sudo systemctl stop smbd nmbd"
-echo "3. 并恢复配置：sudo mv /etc/samba/smb.conf.bak* /etc/samba/smb.conf"
+echo "All the things are ok!"
 echo "=============================================="
