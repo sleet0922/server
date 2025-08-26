@@ -12,14 +12,14 @@ fi
 
 # 安装SMB服务
 echo "start installing SMB..."
-sudo apt update && sudo apt install -y samba samba-common-bin
+apt update && apt install -y samba samba-common-bin
 
 # 备份原有SMB配置（如果存在）
-sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.bak$(date +%Y%m%d%H%M%S)
+cp /etc/samba/smb.conf /etc/samba/smb.conf.bak$(date +%Y%m%d%H%M%S)
 
 # 创建自定义配置文件（按要求修改为root权限）
 echo "config SMB..."
-sudo tee /etc/samba/smb.conf > /dev/null << 'EOF'
+tee /etc/samba/smb.conf > /dev/null << 'EOF'
 [global]
 workgroup = WORKGROUP
 server string = Web Directory Share
@@ -48,11 +48,11 @@ EOF
 
 # 重启SMB服务
 echo "restart SMB..."
-sudo systemctl restart smbd nmbd
+systemctl restart smbd nmbd
 
 # 显示服务状态
 echo "SMB status："
-sudo systemctl status smbd --no-pager
+systemctl status smbd --no-pager
 
 echo "=============================================="
 echo "All the things are ok!"
