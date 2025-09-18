@@ -3,9 +3,9 @@ set -euo pipefail
 
 # 找最新目录
 SNAP=$(ls -1d /recover/2* 2>/dev/null | tail -n1)
-[[ -d $SNAP ]] || { echo ">>> 没有找到快照！"; exit 1; }
+[[ -d $SNAP ]] || { echo ">>> no shot！"; exit 1; }
 
-echo ">>> 即将恢复最新快照：$SNAP"
+echo ">>> it will be recovered：$SNAP"
 mount -o remount,rw /
 rsync -aAX --numeric-ids --delete \
       --exclude='/dev/*' \
@@ -17,4 +17,4 @@ rsync -aAX --numeric-ids --delete \
       --exclude='/lost+found' \
       "$SNAP/" /
 
-echo ">>> 恢复完成，建议重启"
+echo ">>> suggest restart"
