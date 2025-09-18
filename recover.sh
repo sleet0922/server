@@ -1,5 +1,4 @@
 #!/bin/bash
-# 3.sh —— 恢复最新快照
 set -euo pipefail
 
 # 找最新目录
