@@ -6,7 +6,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# 定义要卸载的软件包列表，包含多种Firefox可能的包名
+# 定义要卸载的软件包列表
 packages=(
     "gnome-calculator"
     "gnome-calendar"
@@ -47,9 +47,30 @@ apt clean
 apt autoclean
 
 # 安装指定软件包
-echo "正在安装必要的软件包..."
+echo "正在安装必要的扩展和工具..."
 apt install -y gnome-shell-extension-prefs
 apt install -y chrome-gnome-shell
 apt install -y gnome-shell-extension-dash-to-dock
+
+# 安装Google Chrome
+echo "开始安装Google Chrome..."
+
+# 安装必要的依赖
+echo "安装必要的依赖包..."
+apt update
+apt install -y wget gnupg2 apt-transport-https
+
+# 下载并添加Google的签名密钥
+echo "添加Google签名密钥..."
+wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /etc/apt/trusted.gpg.d/google-chrome.gpg
+
+# 添加Google Chrome的软件源
+echo "添加Google Chrome软件源..."
+echo "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+
+# 更新软件包列表并安装Google Chrome稳定版
+echo "安装Google Chrome..."
+apt update
+apt install -y google-chrome-stable
 
 echo "所有操作已完成"
