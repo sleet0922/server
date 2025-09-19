@@ -1,7 +1,7 @@
 server {
-    listen 81;
-    listen [::]:81;
-    server_name zyz0922.cn;
+    listen 80;
+    listen [::]:80;
+    server_name localhost;
 
     add_header Access-Control-Allow-Origin *;
     add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
@@ -65,9 +65,9 @@ server {
 # ===================================================================
 
 server {
-    listen 444 ssl;
-    listen [::]:444 ssl;
-    server_name zyz0922.cn;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name localhost;
     http2 on;
 
     ssl_certificate /ssl/zyz0922.cn.pem;
@@ -144,3 +144,4 @@ server {
     access_log /var/log/nginx/https_access.log;
     error_log /var/log/nginx/https_error.log;
 }
+
