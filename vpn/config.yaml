@@ -1,0 +1,94 @@
+# 基础代理端口配置
+port: 7890
+socks-port: 7891
+mixed-port: 7892
+mixed-address: 0.0.0.0  # 核心：强制监听IPv4，解决终端代理通信问题
+allow-lan: true
+mode: rule  # 默认为规则模式，如需永久全局可改为 global
+log-level: info
+external-controller: 127.0.0.1:9090
+external-ui: ui
+# 代理地址下载Web UI，避免GitHub无法访问
+external-ui-url: 'https://ghfast.top/https://github.com/Zephyruso/zashboard/releases/latest/download/dist.zip'
+secret: "yyhhyyyyyy"
+
+# DNS配置（优化解析，兼容更多节点）
+dns:
+  enable: true
+  listen: 0.0.0.0:53  # 监听IPv4 DNS端口
+  enhanced-mode: redir-host  # 替换fake-ip，提升兼容性，解决部分节点解析失败
+  fake-ip-range: 198.18.0.1/16
+  use-hosts: true
+  nameserver:
+    - 1.1.1.1  # Cloudflare DNS
+    - 8.8.8.8  # Google DNS
+    - 223.5.5.5  # 阿里云DNS（备用，提升国内解析速度）
+  fallback:
+    - 1.1.1.1
+    - 8.8.8.8
+
+# 延迟检测与健康检查通用配置（复用配置，减少冗余）
+p: &p
+  type: http
+  interval: 3600  # 订阅自动更新间隔（1小时）
+  health-check:
+    enable: true
+    url: https://cp.cloudflare.com
+    interval: 300  # 节点健康检查间隔（5分钟）
+    timeout: 1000  # 节点超时时间（1秒）
+    tolerance: 100  # 节点自动切换差值（100毫秒）
+
+# 订阅组通用配置
+use: &use
+  type: url-test  # 自动选择延迟最低节点，如需手动选择改为 select
+  use:
+    - 订阅一
+  url: https://cp.cloudflare.com
+  interval: 300
+
+# 代理订阅配置（已替换为你的真实订阅链接）
+proxy-providers:
+  订阅一:
+    <<: *p
+    url: "https://hapyf.tg9966.net/s/b9744a4054709f9fb5bd92b1e65a1656"
+    path: ./proxy_provider/订阅一.yaml
+    health-check:
+      enable: true
+      interval: 600
+      timeout: 2000
+
+# 代理组配置（节点选择 + 全部节点）
+proxy-groups:
+  - name: 节点选择
+    type: select  # 手动选择节点（方便切换）
+    proxies:
+      - 全部节点
+      - DIRECT  # 直连（备用）
+  - name: 全部节点
+    <<: *use
+    type: url-test  # 自动筛选延迟最低节点
+    proxies: []
+
+# 分流规则配置（合理分流，国内直连，国外代理）
+rules:
+  - DOMAIN-SUFFIX,google.com,节点选择
+  - DOMAIN-SUFFIX,youtube.com,节点选择
+  - DOMAIN-SUFFIX,github.com,节点选择
+  - DOMAIN-SUFFIX,twitter.com,节点选择
+  - DOMAIN-SUFFIX,facebook.com,节点选择
+  - DOMAIN-SUFFIX,cn,DIRECT  # 所有国内域名直连
+  - GEOIP,CN,DIRECT  # 所有国内IP直连
+  - MATCH,节点选择  # 其余所有流量走代理
+
+# 额外配置（提升稳定性）
+tun:
+  enable: false
+  stack: system
+  dns-hijack:
+    - any:53
+  auto-route: true
+  auto-detect-interface: true
+
+profile:
+  store-selected: true
+  store-fake-ip: true

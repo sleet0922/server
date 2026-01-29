@@ -1,0 +1,269 @@
+# ===================== HTTP 服务配置（81端口，原80端口调整） =====================
+server {
+    # 监听IPv4的81端口
+    listen 81;
+    # 监听IPv6的81端口
+    listen [::]:81;
+    # 全局启用HTTP/2（仅需配置一次，覆盖所有listen端口）
+    http2 on;
+    # 服务域名匹配（本地测试用localhost）
+    server_name localhost;
+
+    # CORS 跨域配置 - 允许所有来源（生产环境建议限定具体域名）
+    add_header Access-Control-Allow-Origin *;
+    # CORS 跨域配置 - 允许的HTTP请求方法
+    add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
+    # CORS 跨域配置 - 允许的请求头字段
+    add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization';
+    
+    # 处理 OPTIONS 预检请求 - 直接返回204（无内容），避免返回实体内容
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
+
+    # 网站根目录（静态文件存放路径）
+    root /var/www/html;
+    # 默认索引页（优先匹配index.html）
+    index index.html;
+
+    # 404 错误页面配置 - 将404错误重定向到/404.html
+    error_page 404 /404.html;
+    # 精准匹配404.html的访问规则
+    location = /404.html {
+        # 仅允许内部跳转访问（禁止客户端直接访问/404.html）
+        internal;
+        # 禁用缓存（expires -1 表示立即过期）
+        expires -1;
+        # 强制客户端不缓存404页面
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # ========== 关键配置：/api/ 接口代理（^~ 强制优先匹配，跳过正则匹配） ==========
+    location ^~ /api/ {
+        # 代理转发到后端服务的8081端口
+        proxy_pass http://localhost:8081;
+        # 传递原始请求的Host头到后端
+        proxy_set_header Host $host;
+        # 传递客户端真实IP到后端
+        proxy_set_header X-Real-IP $remote_addr;
+        # 传递客户端IP链（多级代理时保留所有IP）
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 传递原始请求的协议（http/https）
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # 传递原始请求的主机名
+        proxy_set_header X-Forwarded-Host $host;
+        # 传递原始请求的端口号
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        # 代理连接超时时间（与后端建立连接的超时）
+        proxy_connect_timeout 30s;
+        # 代理发送数据超时时间（向后端发送请求的超时）
+        proxy_send_timeout 30s;
+        # 代理读取响应超时时间（等待后端返回响应的超时）
+        proxy_read_timeout 60s;
+        # 启用代理缓冲（提升响应性能）
+        proxy_buffering on;
+        # 单个缓冲区大小（16k）
+        proxy_buffer_size 16k;
+        # 缓冲区数量和每个大小（4个×64k）
+        proxy_buffers 4 64k;
+        # 忙时缓冲区最大大小（修正错误指令：proxy_buffering_size → proxy_busy_buffers_size）
+        proxy_busy_buffers_size 128k;
+    }
+
+    # ========== 关键配置：WebSocket 代理（^~ 保持与/api/优先级一致） ==========
+    location ^~ /api/ws/ {
+        # 转发到后端8081端口的WebSocket服务
+        proxy_pass http://localhost:8081;
+        # 强制使用HTTP/1.1协议（WebSocket必须）
+        proxy_http_version 1.1;
+        # 传递Upgrade头（触发WebSocket升级）
+        proxy_set_header Upgrade $http_upgrade;
+        # 传递Connection头（指定升级为WebSocket）
+        proxy_set_header Connection "upgrade";
+        # 传递Host头到后端
+        proxy_set_header Host $host;
+        # WebSocket长连接超时时间（1天，避免频繁断开）
+        proxy_read_timeout 86400;
+    }
+
+    # 静态文件缓存规则（正则匹配常见静态文件后缀，优先级低于^~的/api/）
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|html)$ {
+        # 缓存有效期设为最大值（永久缓存）
+        expires max;
+        # 关闭静态文件的访问日志（减少日志量）
+        access_log off;
+        # 强制客户端缓存静态文件（有效期1年）
+        add_header Cache-Control "public, max-age=31536000";
+    }
+
+    # 根路径规则：处理非/api/的根路径请求
+    location / {
+        # 正则匹配：仅允许/（根路径）或/api/开头的请求，其余直接返回404
+        if ($request_uri !~ ^(/$|/api/)) {
+            return 404;
+        }
+        # 尝试按顺序查找文件/目录，找不到则重定向到index.html（适配前端路由）
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 关闭目录自动索引（禁止客户端浏览目录结构）
+    autoindex off;
+    # 关闭自动索引的文件大小精确显示（显示四舍五入后的大小）
+    autoindex_exact_size off;
+    # 自动索引使用本地时间（而非UTC时间）
+    autoindex_localtime on;
+
+    # 设置响应内容的字符编码为UTF-8
+    charset utf-8;
+    # 设置源文件的字符编码为UTF-8
+    source_charset utf-8;
+
+    # HTTP访问日志存放路径
+    access_log /var/log/nginx/intranet_access.log;
+    # HTTP错误日志存放路径
+    error_log /var/log/nginx/intranet_error.log;
+}
+
+# ===================== HTTPS 服务配置（444端口，原443端口调整） =====================
+server {
+    # 监听IPv4的444端口并启用SSL
+    listen 444 ssl;          
+    # 监听IPv6的444端口并启用SSL
+    listen [::]:444 ssl;     
+    # 全局启用HTTPS的HTTP/2（仅需配置一次）
+    http2 on;
+    # HTTPS服务域名匹配（本地测试用localhost）
+    server_name localhost;
+
+    # SSL 证书配置 - 公钥文件路径
+    ssl_certificate /ssl/zyz0922.cn.pem;
+    # SSL 证书配置 - 私钥文件路径
+    ssl_certificate_key /ssl/zyz0922.cn.key;
+    
+    # SSL 协议版本 - 仅启用TLSv1.2和TLSv1.3（禁用低版本不安全协议）
+    ssl_protocols TLSv1.2 TLSv1.3;
+    # 优先使用服务端指定的加密套件
+    ssl_prefer_server_ciphers on;
+    # SSL 加密套件 - 仅启用安全的加密算法（禁用弱加密）
+    ssl_ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384";
+    
+    # SSL 会话缓存 - 共享缓存，大小10MB
+    ssl_session_cache shared:SSL:10m;
+    # SSL 会话超时时间 - 1天（减少重复握手）
+    ssl_session_timeout 1d;
+    # 禁用SSL会话票据（提升安全性）
+    ssl_session_tickets off;
+
+    # HSTS 配置 - 强制客户端后续请求使用HTTPS（有效期1年，包含子域名）
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # CORS 跨域配置 - 允许所有来源（生产环境建议限定具体域名）
+    add_header Access-Control-Allow-Origin *;
+    # CORS 跨域配置 - 允许的HTTP请求方法
+    add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
+    # CORS 跨域配置 - 允许的请求头字段
+    add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization';
+    
+    # 处理 OPTIONS 预检请求 - 直接返回204（无内容）
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
+
+    # HTTPS网站根目录（与HTTP保持一致）
+    root /var/www/html;
+    # HTTPS默认索引页（与HTTP保持一致）
+    index index.html;
+
+    # 404 错误页面配置 - 将404错误重定向到/404.html
+    error_page 404 /404.html;
+    # 精准匹配404.html的访问规则
+    location = /404.html {
+        # 仅允许内部跳转访问（禁止客户端直接访问）
+        internal;
+        # 禁用缓存（立即过期）
+        expires -1;
+        # 强制客户端不缓存404页面
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # ========== 关键配置：/api/ 接口代理（^~ 强制优先匹配） ==========
+    location ^~ /api/ {
+        # 代理转发到后端8081端口
+        proxy_pass http://localhost:8081;
+        # 传递原始请求的Host头
+        proxy_set_header Host $host;
+        # 传递客户端真实IP
+        proxy_set_header X-Real-IP $remote_addr;
+        # 传递客户端IP链
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 传递原始请求协议（https）
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # 传递原始请求主机名
+        proxy_set_header X-Forwarded-Host $host;
+        # 传递原始请求端口号
+        proxy_set_header X-Forwarded-Port $server_port;
+        
+        # 代理连接超时时间
+        proxy_connect_timeout 30s;
+        # 代理发送数据超时时间
+        proxy_send_timeout 30s;
+        # 代理读取响应超时时间
+        proxy_read_timeout 60s;
+        # 启用代理缓冲
+        proxy_buffering on;
+        # 单个缓冲区大小
+        proxy_buffer_size 16k;
+        # 缓冲区数量和大小
+        proxy_buffers 4 64k;
+        # 忙时缓冲区最大大小（修正错误指令）
+        proxy_busy_buffers_size 128k;
+    }
+
+    # ========== 关键配置：WebSocket 代理（^~ 保持优先级一致） ==========
+    location ^~ /api/ws/ {
+        # 转发到后端8081端口的WebSocket服务
+        proxy_pass http://localhost:8081;
+        # 强制使用HTTP/1.1协议
+        proxy_http_version 1.1;
+        # 传递Upgrade头（WebSocket升级）
+        proxy_set_header Upgrade $http_upgrade;
+        # 传递Connection头（指定升级）
+        proxy_set_header Connection "upgrade";
+        # 传递Host头
+        proxy_set_header Host $host;
+        # WebSocket长连接超时时间（1天）
+        proxy_read_timeout 86400;
+    }
+
+    # 静态文件缓存规则（与HTTP配置一致）
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|html)$ {
+        expires max;
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000";
+    }
+
+    # 根路径规则（与HTTP配置一致）
+    location / {
+        # 仅允许/或/api/开头的请求，其余返回404
+        if ($request_uri !~ ^(/$|/api/)) {
+            return 404;
+        }
+        # 适配前端路由的try_files规则
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 关闭目录自动索引
+    autoindex off;
+    autoindex_exact_size off;
+    autoindex_localtime on;
+
+    # 字符编码配置（与HTTP一致）
+    charset utf-8;
+    source_charset utf-8;
+
+    # HTTPS访问日志存放路径
+    access_log /var/log/nginx/https_access.log;
+    # HTTPS错误日志存放路径
+    error_log /var/log/nginx/https_error.log;
+}
