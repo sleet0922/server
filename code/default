@@ -79,8 +79,8 @@ server {
     http2 on;
     server_name localhost;
 
-    ssl_certificate /ssl/zyz0922.cn.pem;
-    ssl_certificate_key /ssl/zyz0922.cn.key;
+    ssl_certificate /ssl/1.pem;
+    ssl_certificate_key /ssl/1.key;
     
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers on;
@@ -160,3 +160,4 @@ server {
     access_log /var/log/nginx/https_access.log;
     error_log /var/log/nginx/https_error.log;
 }
+
