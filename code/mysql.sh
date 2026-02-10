@@ -32,12 +32,11 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '$DB_PASSWORD';
 FLUSH PRIVILEGES;
 EOF
 
-# 配置允许远程访问
+# 配置允许远程访问（仅删除错误的EXIT;，其余不变）
 echo "ip contect..."
 mysql -u root -p"$DB_PASSWORD" <<EOF
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$DB_PASSWORD' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
-EXIT;
 EOF
 
 # 修改配置文件，允许公网访问
