@@ -50,9 +50,9 @@ server {
         access_log off;
     }
 
-    # ===== SPA 路由 =====
+    # ===== 路由 =====
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ =404;
     }
 
     # ===== 404 =====
@@ -134,9 +134,9 @@ server {
         access_log off;
     }
 
-    # ===== SPA 路由 =====
+    # ===== 路由 =====
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ =404;
     }
 
     # ===== 404 =====
